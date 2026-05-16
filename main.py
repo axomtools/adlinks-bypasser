@@ -3,10 +3,14 @@ import argparse
 from bypasser import bypassadlink, getfinalcontent
 
 def main():
-    parser = argparse.ArgumentParser(description='Get content from adlinks')
+    parser = argparse.ArgumentParser(description='Ultimate adlink bypasser')
     parser.add_argument('url', help='Adlink URL')
-    parser.add_argument('--content', action='store_true', help='Get full content of final URL')
+    parser.add_argument('--content', action='store_true', help='Get final page content')
+    parser.add_argument('--headless', action='store_true', help='Run browser headless')
     args = parser.parse_args()
+    if args.headless:
+        import config
+        config.headless = True
     if args.content:
         content = getfinalcontent(args.url)
         if content:
@@ -19,7 +23,7 @@ def main():
         if result:
             print(result)
         else:
-            print('Failed to bypass adlink', file=sys.stderr)
+            print('Failed to bypass', file=sys.stderr)
             sys.exit(1)
 
 if __name__ == '__main__':
