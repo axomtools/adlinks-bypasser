@@ -3,10 +3,16 @@ import hashlib
 import random
 import time
 from datetime import datetime, timedelta
-from curl_cffi import requests as curl_requests
 from config import useragents, cacheenabled, cachefile
 
 cachedata = {}
+
+try:
+    from curl_cffi import requests as curl_requests
+    HAS_CURL_CFFI = True
+except ImportError:
+    import requests as std_requests
+    HAS_CURL_CFFI = False
 
 def loadcache():
     global cachedata
@@ -58,7 +64,10 @@ def randomuseragent():
     return random.choice(useragents)
 
 def getsession(impersonate="chrome131"):
-    session = curl_requests.Session(impersonate=impersonate)
+    if HAS_CURL_CFFI:
+        session = curl_requests.Session(impersonate=impersonate)
+    else:
+        session = std_requests.Session()
     session.headers.update({
         'User-Agent': randomuseragent(),
         'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8',
