@@ -1,5 +1,6 @@
 import re
-from urllib.parse import urljoin
+import json
+from urllib.parse import urljoin, urlparse, parse_qs
 from bs4 import BeautifulSoup
 from config import requesttimeout, maxredirects
 from utils import getsession
@@ -42,6 +43,29 @@ def extractfromhtml(html, baseurl):
                         return match.group(1)
     return None
 
+def bypasslinkvertise(url, session):
+    try:
+        resp = session.get(url, timeout=requesttimeout)
+        if 'api.linkvertise.com' in resp.text:
+            api_match = re.search(r'https?://api\.linkvertise\.com/[^\s\'"]+', resp.text)
+            if api_match:
+                api_url = api_match.group(0)
+                token_match = re.search(r'token=([a-f0-9]+)', api_url)
+                if token_match:
+                    token = token_match.group(1)
+                    api_resp = session.get(f'https://api.linkvertise.com/v1/redirects/consume/{token}', 
+                                           headers={'Accept': 'application/json'})
+                    if api_resp.status_code == 200:
+                        data = api_resp.json()
+                        if 'link' in data:
+                            return data['link']
+        direct_match = re.search(r'window\.open\("([^"]+)"\)', resp.text)
+        if direct_match:
+            return direct_match.group(1)
+        return None
+    except:
+        return None
+
 def bypasshttp(url):
     session = getsession()
     try:
@@ -49,9 +73,24 @@ def bypasshttp(url):
         finalurl = response.url
         if finalurl != url:
             return finalurl
+        
+        if 'linkvertise.com' in url.lower():
+            result = bypasslinkvertise(url, session)
+            if result:
+                return result
+        
         extracted = extractfromhtml(response.text, finalurl)
         if extracted:
             return extracted
+        
+        if 'lootlabs' in url.lower():
+            soup = BeautifulSoup(response.text, 'html.parser')
+            for script in soup.find_all('script'):
+                if script.string and 'window.location' in script.string:
+                    match = re.search(r'window\.location\.href\s*=\s*[\'"]([^\'"]+)[\'"]', script.string)
+                    if match:
+                        return urljoin(finalurl, match.group(1))
+        
         return None
     except Exception:
         return None
